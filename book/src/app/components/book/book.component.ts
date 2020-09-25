@@ -1,9 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Book } from '../../model/book';
-import { NgForm } from '@angular/forms';
+import { BookService } from 'src/app/service/book.service';
 
-const api_Url = 'http://localhost:3000/books';
 @Component({
   selector: 'app-book',
   template: `
@@ -14,34 +13,30 @@ const api_Url = 'http://localhost:3000/books';
       <div class="row">
         <div class="col-lg-6 col-md-12 mx-0">
           <ul class="list-group">
-            <li class="list-group-item" *ngFor="let book of books">
+            <li
+              class="list-group-item"
+              *ngFor="let book of books"
+              (click)="setActive(book)"
+              [ngClass]="{'active': book.id === active?.id}"
+              >
+              <img [src]="book.img ? book.img : '../../assets/img/copertineLibri/add.png'" class="img-thumbnail mr-2" alt="" width="40">
               {{book.title}} - {{book.author}}
               <div class="pull-right">
                 <span [style.color]="book.price > 15 ? 'red' : null ">€ {{book.price | number: '1.2-2'}}</span>
-                <i class="fa fa-trash ml-2" (click)="delete(book)"></i>
+                <i class="fa fa-info-circle ml-2" aria-hidden="true" [routerLink]="['/book', book.id]"></i>
+                <i class="fa fa-trash ml-2" (click)="delete($event, book)"></i>
               </div>
             </li>
           </ul>
         </div>
         <div class="col-lg-6 col-md-12 mx-0">
-          <form #f="ngForm" (submit)="add(f)">
-            <div class="form-group">
-              <input [ngModel] type="text" class="form-control" name="title" placeholder="Insert title...">
-            </div>
-            <div class="form-group">
-              <input [ngModel] type="text" class="form-control" name="author" placeholder="Insert author...">
-            </div>
-            <div class="form-group">
-              <input [ngModel] type="number" class="form-control" name="price" placeholder="Insert price...">
-            </div>
-            <div class="form-group">
-              <input [ngModel] type="text" class="form-control" name="isbn" placeholder="Insert isbn...">
-            </div>
-            <div class="form-group">
-              <textarea [ngModel] class="form-control" rows="3" name="description" placeholder="Insert description..."></textarea>
-            </div>
-            <button type="submit" class="btn btn-outline-warning btn-sm mr-1">ADD</button>
-          </form>
+          <app-form
+            [active]="active"
+            [books]="books"
+            (resetClick)="reset()"
+          >
+
+          </app-form>
         </div>
       </div>
     </div>
@@ -50,7 +45,8 @@ const api_Url = 'http://localhost:3000/books';
 
   `,
   styles: [`
-    .fa-trash{
+    .fa-trash,
+    .fa-info-circle{
       cursor: pointer;
     }
     .list-group-item{
@@ -62,23 +58,21 @@ const api_Url = 'http://localhost:3000/books';
       background-color: darkorange;
       border-color: darkorange;
     }
-    .btn-sm{
-      font-size:.875rem;
-      padding: .25rem .5rem;
-      line-height: 1.5;
-      border-radius: .2rem;
-    }
   `]
 })
 export class BookComponent implements OnInit {
 
   books: Book[];
   error: any;
+  active: Book;
 
-  constructor(private http: HttpClient) { }
+  constructor(
+    private http: HttpClient,
+    private bookService: BookService
+    ) { }
 
   getAll(){
-    this.http.get<Book[]>(api_Url)
+    this.bookService.getAll()
     .subscribe((res: Book[]) => {
       this.books = res;
     },
@@ -86,14 +80,9 @@ export class BookComponent implements OnInit {
 
     );
   }
-  add(form: NgForm){
-    this.http.post<Book>(`${api_Url}`, form.value)
-    .subscribe( (res: Book) => {
-      this.books.push(res);
-    });
-  }
-  delete(book: Book){
-    this.http.delete<Book[]>(`${api_Url}/${book.id}`)
+  delete(event, book: Book){
+    event.stopPropagation();
+    this.bookService.deleteBook(book)
     .subscribe(() => {
       // const index = this.books.indexOf(book);
     const index = this.books.findIndex(b => b.id === book.id);
@@ -102,6 +91,12 @@ export class BookComponent implements OnInit {
     },
       err => this.error = err
     );
+  }
+  setActive(book: Book){
+    this.active = book;
+  }
+  reset(){
+    this.active = null;
   }
   ngOnInit(): void {
     this.getAll();
